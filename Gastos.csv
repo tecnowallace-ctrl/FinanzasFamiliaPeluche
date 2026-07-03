@@ -1,0 +1,43 @@
+ID,Fecha,Monto,Categoria,Descripcion,Persona,Lista
+1700000100000,2026-07-11,29000,Crédito Anglo,Cuota,William,Familiar
+1700000200000,2026-07-03,192000,Salidas a Restaurantes,Asado,William,Familiar
+1700000300000,2026-07-19,114000,Arriendo Tulipanes,Regalo,William,Familiar
+1700000400000,2026-07-02,219000,Carro,Cuota,Yinna,Familiar
+1700000500000,2026-07-03,287000,Mathias,Asado,Yinna,Familiar
+1700000600000,2026-07-14,68000,Arriendo Tulipanes,Farmacia,Yinna,Familiar
+1700000700000,2026-07-08,208000,Alimentación,Farmacia,William,Trabajo
+1700000800000,2026-07-02,290000,Tecnología,Pan,Yinna,Trabajo
+1700000900000,2026-07-05,78000,Salud,Cuota,William,Personal
+1700001000000,2026-07-18,162000,Transporte,Farmacia,Yinna,Personal
+1700001100000,2026-07-18,297000,Ropa,Asado,William,Compras
+1700001200000,2026-07-21,54000,Tecnología,Gasolina,Yinna,Compras
+1700001300000,2026-07-18,35000,Transporte,Farmacia,William,TQ
+1700001400000,2026-07-20,277000,Tecnología,Vuelo,Yinna,TQ
+1700001500000,2026-06-14,243000,Gastos Varios,Gasolina,William,Familiar
+1700001600000,2026-06-19,158000,Medicamentos,Gasolina,William,Familiar
+1700001700000,2026-06-08,129000,Gastos Varios,Cine,William,Familiar
+1700001800000,2026-06-03,273000,Servicios Apartamento,Luz y agua,Yinna,Familiar
+1700001900000,2026-06-16,234000,Mercado,Uber,Yinna,Familiar
+1700002000000,2026-06-10,65000,Servicios Apartamento,Asado,Yinna,Familiar
+1700002100000,2026-06-17,180000,Entretenimiento,Cine,William,Trabajo
+1700002200000,2026-06-05,25000,Otros,Cuota,Yinna,Trabajo
+1700002300000,2026-06-22,298000,Transporte,Regalo,William,Personal
+1700002400000,2026-06-26,184000,Regalos,Gasolina,Yinna,Personal
+1700002500000,2026-06-20,238000,Otros,Farmacia,William,Compras
+1700002600000,2026-06-03,247000,Transporte,Luz y agua,Yinna,Compras
+1700002700000,2026-06-23,163000,Transporte,Pan,William,TQ
+1700002800000,2026-06-21,202000,Otros,Luz y agua,Yinna,TQ
+1700002900000,2026-05-22,241000,Salomé,Pan,William,Familiar
+1700003000000,2026-05-12,64000,Crédito Anglo,Farmacia,William,Familiar
+1700003100000,2026-05-16,152000,Arriendo Tulipanes,Pago mensual,William,Familiar
+1700003200000,2026-05-05,208000,Gastos Varios,Pago mensual,Yinna,Familiar
+1700003300000,2026-05-13,90000,Salidas a Restaurantes,Asado,Yinna,Familiar
+1700003400000,2026-05-15,147000,Medicamentos,Regalo,Yinna,Familiar
+1700003500000,2026-05-05,147000,Entretenimiento,Regalo,William,Trabajo
+1700003600000,2026-05-23,199000,Entretenimiento,Gasolina,Yinna,Trabajo
+1700003700000,2026-05-08,95000,Ropa,Asado,William,Personal
+1700003800000,2026-05-05,124000,Tecnología,Almuerzo,Yinna,Personal
+1700003900000,2026-05-01,98000,Otros,Farmacia,William,Compras
+1700004000000,2026-05-09,79000,Salud,Pan,Yinna,Compras
+1700004100000,2026-05-14,294000,Regalos,Farmacia,William,TQ
+1700004200000,2026-05-11,268000,Ropa,Uber,Yinna,TQ
