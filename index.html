@@ -520,7 +520,7 @@ function entrarApp() {
   document.getElementById("perfilActual").textContent = esGeneral ? "Balance General" : PERFIL_ACTUAL;
   document.getElementById("registroPerfil").textContent = PERFIL_ACTUAL;
   document.getElementById("fabRegistrar").classList.toggle("hidden", esGeneral);
-  document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
+  sincronizarFechaFormularioConMes();
 
   listaActual = "Familiar";
 
@@ -712,7 +712,7 @@ document.getElementById("gastoForm").addEventListener("submit", async (e) => {
   setTimeout(() => document.getElementById("guardadoMsg").classList.add("hidden"), 2000);
 
   e.target.reset();
-  document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
+  sincronizarFechaFormularioConMes();
   sincronizarFormularioConLista();
   await fetchData();
   renderAll();
@@ -825,7 +825,23 @@ function renderPresupuestosTab() {
 // --- Navegación de mes ---
 function cambiarMes(delta) {
   mesSeleccionado.setMonth(mesSeleccionado.getMonth() + delta);
+  sincronizarFechaFormularioConMes();
   renderAll();
+}
+
+// Mantiene la fecha del formulario "Nuevo gasto" alineada con el mes que se
+// está viendo arriba: si es el mes real de hoy, usa el día de hoy; si es
+// otro mes (pasado o futuro), usa el día 1 de ese mes para no registrar
+// sin querer un gasto en el mes equivocado.
+function sincronizarFechaFormularioConMes() {
+  const inputFecha = document.getElementById("fecha");
+  if (!inputFecha) return;
+  const hoy = new Date();
+  const esMesActual = mesSeleccionado.getFullYear() === hoy.getFullYear() &&
+                       mesSeleccionado.getMonth() === hoy.getMonth();
+  inputFecha.value = esMesActual
+    ? hoy.toISOString().slice(0, 10)
+    : new Date(mesSeleccionado.getFullYear(), mesSeleccionado.getMonth(), 1).toISOString().slice(0, 10);
 }
 
 // --- Filtro central: mes + lista + separación por persona ---
@@ -1015,6 +1031,7 @@ function renderBalanceAnual() {
 // Al tocar un mes en la barra anual, cambia el mes seleccionado (mismo año)
 function seleccionarMesDelAnio(mesIndex) {
   mesSeleccionado = new Date(mesSeleccionado.getFullYear(), mesIndex, 1);
+  sincronizarFechaFormularioConMes();
   renderAll();
 }
 
