@@ -156,14 +156,23 @@
   <!-- ===== TAB: REGISTRO (pantalla inicial) ===== -->
   <div id="tab-registro" class="tab-content hidden">
 
-    <!-- Resumen rápido con barras (contexto del mes/lista seleccionados) -->
+    <!-- Tarjeta 1: SOLO tus gastos del mes en la lista activa, con alertas de presupuesto -->
     <div class="bg-white rounded-2xl shadow p-6 mb-6">
-      <p class="text-gray-500 text-sm mb-1">Total en <span class="listaLabel">Gastos Familiares</span></p>
+      <p class="text-gray-500 text-sm mb-1">Tus gastos en <span class="listaLabel">Gastos Familiares</span> — <span id="registroPerfilResumen"></span></p>
       <h2 id="totalMesRegistro" class="text-4xl font-extrabold mb-4">$0</h2>
       <div id="categoriaBarsRegistro" class="flex gap-3 overflow-x-auto pb-2 items-end" style="min-height:180px"></div>
+      <div id="alertasBoxRegistro" class="mt-4"></div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow p-6">
+    <!-- Tarjeta 2: acumulado de gastos FAMILIARES (William + Yinna combinados) -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-6">
+      <p class="text-gray-500 text-sm mb-1">Acumulado gastos familiares (ambos) este mes</p>
+      <h2 id="totalFamiliarAcumulado" class="text-3xl font-extrabold mb-4" style="color:var(--azul-confianza)">$0</h2>
+      <div id="categoriaBarsFamiliar" class="flex gap-3 overflow-x-auto pb-2 items-end mb-4" style="min-height:160px"></div>
+      <div id="familiarPorPersonaResumen" class="grid grid-cols-2 gap-3"></div>
+    </div>
+
+    <div id="nuevoGastoCard" class="bg-white rounded-2xl shadow p-6">
       <h3 class="font-semibold mb-4">Nuevo gasto — <span id="registroPerfil"></span></h3>
       <form id="gastoForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2 rounded-xl p-3 border-2" style="background:var(--celeste-calidez);border-color:var(--verde-crecimiento)">
@@ -255,6 +264,33 @@
     <div class="bg-white rounded-2xl shadow p-6">
       <h3 class="font-semibold mb-4">Presupuestos por categoría</h3>
       <div id="presupuestosCategorias" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Botones flotantes: buscar y registrar un gasto -->
+  <button id="fabBuscar" onclick="abrirBuscador()"
+    class="fixed bottom-6 right-24 w-14 h-14 rounded-full shadow-lg text-white text-2xl leading-none flex items-center justify-center z-40 active:scale-95 transition"
+    style="background:var(--azul-confianza)" title="Buscar un gasto" aria-label="Buscar un gasto">
+    🔍
+  </button>
+  <button id="fabRegistrar" onclick="irARegistrarGasto()"
+    class="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg text-white text-4xl leading-none flex items-center justify-center z-40 active:scale-95 transition"
+    style="background:var(--verde-crecimiento)" title="Registrar un gasto" aria-label="Registrar un gasto">
+    +
+  </button>
+
+  <!-- ===== MODAL: Buscar un gasto ===== -->
+  <div id="buscarGastoModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-start sm:items-center justify-center">
+    <div class="bg-white rounded-b-2xl sm:rounded-2xl shadow-lg w-full sm:max-w-md p-6 max-h-[85vh] flex flex-col mt-0 sm:mt-0">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Buscar un gasto</h3>
+        <button onclick="cerrarBuscador()" class="text-gray-400 text-2xl leading-none">&times;</button>
+      </div>
+      <input type="text" id="buscarInput" placeholder="Descripción, categoría o persona…"
+        oninput="renderResultadosBusqueda()"
+        class="border rounded-xl px-4 py-3 mb-4" autocomplete="off" />
+      <p class="text-xs text-gray-400 mb-2">Busca en todo el historial, sin importar el mes o la lista.</p>
+      <div id="resultadosBusqueda" class="flex-1 overflow-y-auto divide-y"></div>
     </div>
   </div>
 
@@ -384,7 +420,7 @@ let mesSeleccionado = new Date();
 let listaActual = "Familiar";
 
 // --- Estado de notificaciones ---
-let notifActivas = false;
+let notifActivas = true;
 let ultimoGastoFamiliarVistoTS = 0; // timestamp del gasto familiar más reciente ya visto
 let notifPollTimer = null;
 
@@ -446,8 +482,9 @@ function sincronizarFormularioConLista() {
 
 function poblarCategorias(listaKey) {
   const select = document.getElementById("categoria");
-  select.innerHTML = getCategoriasParaLista(listaKey)
+  const opcionesReales = getCategoriasParaLista(listaKey)
     .map(c => `<option value="${c}">${EMOJI_CATEGORIA[c] || "📦"} ${c}</option>`).join("");
+  select.innerHTML = `<option value="" disabled selected>Selecciona una categoría…</option>` + opcionesReales;
 }
 
 // --- Login (solo contraseña) ---
@@ -482,6 +519,7 @@ function entrarApp() {
   const esGeneral = PERFIL_ACTUAL === "General";
   document.getElementById("perfilActual").textContent = esGeneral ? "Balance General" : PERFIL_ACTUAL;
   document.getElementById("registroPerfil").textContent = PERFIL_ACTUAL;
+  document.getElementById("fabRegistrar").classList.toggle("hidden", esGeneral);
   document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
 
   listaActual = "Familiar";
@@ -490,7 +528,7 @@ function entrarApp() {
   const selectLista = document.getElementById("lista");
   selectLista.innerHTML = getListasDisponibles()
     .map(l => `<option value="${l.key}">${l.label}</option>`).join("");
-  selectLista.onchange = () => poblarCategorias(selectLista.value);
+  selectLista.onchange = () => seleccionarLista(selectLista.value);
   sincronizarFormularioConLista();
 
   // Balance General: sin registro ni presupuestos; arranca en Balance.
@@ -535,6 +573,85 @@ function showTab(tab) {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.tab === tab);
   });
+}
+
+// Botón flotante "+": cambia al tab Registrar y salta directo al formulario
+function irARegistrarGasto() {
+  if (PERFIL_ACTUAL === "General") return; // Balance General no registra gastos
+  showTab("registro");
+  const card = document.getElementById("nuevoGastoCard");
+  if (card) {
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => {
+      const monto = document.getElementById("monto");
+      if (monto) monto.focus();
+    }, 300);
+  }
+}
+
+// --- Buscador de gastos (botón 🔍) ---
+function abrirBuscador() {
+  document.getElementById("buscarGastoModal").classList.remove("hidden");
+  const input = document.getElementById("buscarInput");
+  input.value = "";
+  document.getElementById("resultadosBusqueda").innerHTML =
+    `<p class="text-gray-400 text-sm text-center py-8">Escribe para buscar…</p>`;
+  setTimeout(() => input.focus(), 100);
+}
+
+function cerrarBuscador() {
+  document.getElementById("buscarGastoModal").classList.add("hidden");
+}
+
+// Gastos visibles para la persona logueada, sin importar mes ni lista activos
+function gastosVisiblesParaBusqueda() {
+  return allGastos.filter(d => {
+    if (PERFIL_ACTUAL === "General") return true;
+    const compartida = d.Lista === "Familiar" || d.Lista === "TQ";
+    return compartida || d.Persona === PERFIL_ACTUAL;
+  });
+}
+
+function renderResultadosBusqueda() {
+  const q = document.getElementById("buscarInput").value.trim().toLowerCase();
+  const cont = document.getElementById("resultadosBusqueda");
+
+  if (!q) {
+    cont.innerHTML = `<p class="text-gray-400 text-sm text-center py-8">Escribe para buscar…</p>`;
+    return;
+  }
+
+  const resultados = gastosVisiblesParaBusqueda()
+    .filter(d =>
+      (d.Descripcion || "").toLowerCase().includes(q) ||
+      (d.Categoria || "").toLowerCase().includes(q) ||
+      (d.Persona || "").toLowerCase().includes(q)
+    )
+    .sort((a, b) => tsDeGasto(b) - tsDeGasto(a))
+    .slice(0, 50);
+
+  if (resultados.length === 0) {
+    cont.innerHTML = `<p class="text-gray-400 text-sm text-center py-8">Sin resultados para "${q}".</p>`;
+    return;
+  }
+
+  cont.innerHTML = resultados.map(d => `
+    <div class="flex items-center gap-3 py-3 cursor-pointer hover:bg-gray-50 rounded-xl px-2 -mx-2 transition"
+         onclick="seleccionarResultadoBusqueda('${d.ID}')">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+           style="background:${colorCategoria(d.Categoria)}">${EMOJI_CATEGORIA[d.Categoria] || "📦"}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${d.Descripcion || "(sin descripción)"}</p>
+        <p class="text-xs text-gray-500">${d.Categoria} · ${d.Persona} · ${d.Lista || "Familiar"} · ${new Date(d.Fecha).toLocaleDateString("es-CO")}</p>
+      </div>
+      <p class="font-semibold whitespace-nowrap">$${Number(d.Monto).toLocaleString("es-CO")}</p>
+    </div>`).join("");
+}
+
+function seleccionarResultadoBusqueda(id) {
+  cerrarBuscador();
+  if (PERFIL_ACTUAL === "General") return; // solo lectura, no abre el modal de edición
+  abrirEditarGasto(id);
 }
 
 // --- Cargar datos ---
@@ -728,6 +845,26 @@ function datosDelMes() {
   });
 }
 
+// Solo los gastos del mes/lista activos registrados por la persona logueada
+// (a diferencia de datosDelMes(), aquí SIEMPRE se filtra por persona,
+// incluso en listas compartidas como Familiar o TQ).
+function misGastosDelMes() {
+  if (PERFIL_ACTUAL === "General") return datosDelMes();
+  return datosDelMes().filter(d => d.Persona === PERFIL_ACTUAL);
+}
+
+// Todos los gastos de la lista Familiar del mes (William + Yinna combinados),
+// sin importar la lista que se esté viendo actualmente — sirve como recordatorio
+// permanente del acumulado familiar mientras registras cualquier tipo de gasto.
+function gastosFamiliaresDelMesTodos() {
+  return allGastos.filter(d => {
+    const f = new Date(d.Fecha);
+    const mismoMes = f.getMonth() === mesSeleccionado.getMonth() && f.getFullYear() === mesSeleccionado.getFullYear();
+    if (!mismoMes) return false;
+    return (d.Lista || "Familiar") === "Familiar";
+  });
+}
+
 // --- Render principal ---
 function renderAll() {
   document.getElementById("mesLabel").textContent =
@@ -738,10 +875,20 @@ function renderAll() {
 
   const total = datosDelMes().reduce((sum, d) => sum + Number(d.Monto), 0);
   document.getElementById("totalMes").textContent = "$" + total.toLocaleString("es-CO");
-  document.getElementById("totalMesRegistro").textContent = "$" + total.toLocaleString("es-CO");
+
+  // Tarjeta 1 de Registro: SOLO los gastos de la persona logueada (William o Yinna)
+  const misGastos = misGastosDelMes();
+  const totalPropio = misGastos.reduce((sum, d) => sum + Number(d.Monto), 0);
+  document.getElementById("totalMesRegistro").textContent = "$" + totalPropio.toLocaleString("es-CO");
+  const elPerfilResumen = document.getElementById("registroPerfilResumen");
+  if (elPerfilResumen) elPerfilResumen.textContent = PERFIL_ACTUAL === "General" ? "" : PERFIL_ACTUAL;
 
   renderCategoriaBars("categoriaBars", 160);
-  renderCategoriaBars("categoriaBarsRegistro", 120);
+  renderCategoriaBars("categoriaBarsRegistro", 120, misGastos);
+
+  // Tarjeta 2 de Registro: acumulado de gastos Familiares de ambos
+  renderFamiliarAcumuladoRegistro();
+
   renderBalanceAnual();
 
   // Solo la lista Familiar divide 50/50 y muestra desglose por persona
@@ -776,8 +923,8 @@ function formatK(n) {
 
 // Barras estilo Monei: contenedor con items-end para que las barras
 // queden ancladas ABAJO y crezcan hacia arriba según el monto.
-function renderCategoriaBars(containerId, maxAltura) {
-  const datos = datosDelMes();
+function renderCategoriaBars(containerId, maxAltura, datosOverride) {
+  const datos = datosOverride || datosDelMes();
   const porCategoria = {};
   datos.forEach(d => { porCategoria[d.Categoria] = (porCategoria[d.Categoria] || 0) + Number(d.Monto); });
 
@@ -785,7 +932,7 @@ function renderCategoriaBars(containerId, maxAltura) {
   const cont = document.getElementById(containerId);
 
   if (entradas.length === 0) {
-    cont.innerHTML = `<p class="text-gray-400 text-sm py-6">Sin gastos en "${labelListaActual()}" este mes.</p>`;
+    cont.innerHTML = `<p class="text-gray-400 text-sm py-6">Sin gastos este mes.</p>`;
     return;
   }
 
@@ -802,6 +949,29 @@ function renderCategoriaBars(containerId, maxAltura) {
         <p class="text-[11px] text-gray-500 mt-1 w-20 text-center truncate">${cat}</p>
       </div>`;
   }).join("");
+}
+
+// Tarjeta 2 del tab Registro: acumulado de la lista Familiar (ambas personas),
+// visible sin importar qué lista se esté registrando en ese momento.
+function renderFamiliarAcumuladoRegistro() {
+  const totalEl = document.getElementById("totalFamiliarAcumulado");
+  const box = document.getElementById("familiarPorPersonaResumen");
+  if (!totalEl || !box) return;
+
+  const datos = gastosFamiliaresDelMesTodos();
+  const total = datos.reduce((s, d) => s + Number(d.Monto), 0);
+  totalEl.textContent = "$" + total.toLocaleString("es-CO");
+
+  renderCategoriaBars("categoriaBarsFamiliar", 140, datos);
+
+  const porPersona = {};
+  datos.forEach(d => { porPersona[d.Persona] = (porPersona[d.Persona] || 0) + Number(d.Monto); });
+
+  box.innerHTML = ["William", "Yinna"].map(persona => `
+    <div class="bg-gray-50 rounded-xl p-4">
+      <p class="text-xs text-gray-500">${persona} gastó</p>
+      <p class="font-bold">$${(porPersona[persona] || 0).toLocaleString("es-CO")}</p>
+    </div>`).join("");
 }
 
 // Gastos del mes m (0-11) del año en curso, respetando la lista/persona activa
@@ -938,8 +1108,6 @@ async function deshacerPago() {
 function renderAlertas() {
   const datos = datosDelMes();
   const total = datos.reduce((s,d) => s + Number(d.Monto), 0);
-  const box = document.getElementById("alertasBox");
-  box.innerHTML = "";
   let alertas = [];
 
   const presupuestoTotal = getPresupuestoTotal();
@@ -957,11 +1125,16 @@ function renderAlertas() {
     }
   });
 
-  if (alertas.length > 0) {
-    box.innerHTML = alertas.map(a =>
-      `<div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-2">${a}</div>`
-    ).join("");
-  }
+  const html = alertas.length > 0
+    ? alertas.map(a => `<div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-2">${a}</div>`).join("")
+    : "";
+
+  // Se pinta tanto en el tab Balance como en el tab Registro, para que se
+  // sepa que se está al límite del presupuesto también mientras se registra.
+  const box = document.getElementById("alertasBox");
+  if (box) box.innerHTML = html;
+  const boxRegistro = document.getElementById("alertasBoxRegistro");
+  if (boxRegistro) boxRegistro.innerHTML = html;
 }
 
 function renderLista() {
@@ -1251,7 +1424,10 @@ function configurarNotificaciones() {
     return;
   }
 
-  notifActivas = sessionStorage.getItem("monei_notif_" + PERFIL_ACTUAL) === "1";
+  // Por defecto, las notificaciones vienen ACTIVADAS para ambos perfiles.
+  // Solo se desactivan si la persona explícitamente las apagó antes (queda "0" guardado).
+  const notifGuardado = sessionStorage.getItem("monei_notif_" + PERFIL_ACTUAL);
+  notifActivas = notifGuardado === null ? true : notifGuardado === "1";
   document.getElementById("notifToggle").checked = notifActivas;
 
   const vistoGuardado = sessionStorage.getItem("monei_notif_visto_" + PERFIL_ACTUAL);
