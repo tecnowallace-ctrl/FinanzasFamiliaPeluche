@@ -99,7 +99,7 @@
 
   <div class="flex justify-between items-center mb-4">
     <div>
-      <p class="text-sm text-gray-500">Sesión: <span id="perfilActual" class="font-semibold"></span>
+      <p class="text-sm text-gray-500">Sesión: <span id="perfilActual" class="font-extrabold text-base"></span>
         <button onclick="abrirCambioPerfil()" class="text-blue-600 underline ml-1">cambiar</button>
       </p>
     </div>
@@ -157,10 +157,11 @@
   <div id="tab-registro" class="tab-content hidden">
 
     <!-- Tarjeta 1: SOLO tus gastos del mes en la lista activa, con alertas de presupuesto -->
-    <div class="bg-white rounded-2xl shadow p-6 mb-6">
-      <p class="text-gray-500 text-sm mb-1">Tus gastos en <span class="listaLabel">Gastos Familiares</span> — <span id="registroPerfilResumen"></span></p>
+    <div id="tarjetaMisGastos" class="bg-white rounded-2xl shadow p-6 mb-6" style="border-left:5px solid transparent">
+      <p class="text-gray-500 text-sm mb-1">Tus gastos en <span class="listaLabel">Gastos Familiares</span> — <span id="registroPerfilResumen" class="font-extrabold"></span></p>
       <h2 id="totalMesRegistro" class="text-4xl font-extrabold mb-4">$0</h2>
       <div id="categoriaBarsRegistro" class="flex gap-3 overflow-x-auto pb-2 items-end" style="min-height:180px"></div>
+      <p class="text-[11px] text-gray-400 mb-2">🟦 sólida = gastado · ┄ punteada = presupuesto (cuando hay uno definido)</p>
       <div id="alertasBoxRegistro" class="mt-4"></div>
     </div>
 
@@ -168,7 +169,8 @@
     <div class="bg-white rounded-2xl shadow p-6 mb-6">
       <p class="text-gray-500 text-sm mb-1">Acumulado gastos familiares (ambos) este mes</p>
       <h2 id="totalFamiliarAcumulado" class="text-3xl font-extrabold mb-4" style="color:var(--azul-confianza)">$0</h2>
-      <div id="categoriaBarsFamiliar" class="flex gap-3 overflow-x-auto pb-2 items-end mb-4" style="min-height:160px"></div>
+      <div id="categoriaBarsFamiliar" class="flex gap-3 overflow-x-auto pb-2 items-end mb-2" style="min-height:160px"></div>
+      <p class="text-[11px] text-gray-400 mb-4">🟦 sólida = gastado · ┄ punteada = presupuesto (cuando hay uno definido)</p>
       <div id="familiarPorPersonaResumen" class="grid grid-cols-2 gap-3"></div>
     </div>
 
@@ -218,20 +220,21 @@
       <h2 id="totalMes" class="text-4xl font-extrabold mb-4">$0</h2>
 
       <!-- Barras por categoría, estilo Monei: ancladas abajo, crecen hacia arriba -->
-      <div id="categoriaBars" class="flex gap-3 overflow-x-auto pb-2 mb-6 items-end" style="min-height:220px"></div>
+      <div id="categoriaBars" class="flex gap-3 overflow-x-auto pb-2 mb-2 items-end" style="min-height:220px"></div>
+      <p class="text-[11px] text-gray-400 mb-4">🟦 sólida = gastado · ┄ punteada = presupuesto (cuando hay uno definido)</p>
 
       <!-- Alertas de presupuesto -->
       <div id="alertasBox" class="mb-4"></div>
 
       <!-- Gasto por persona (solo lista Familiar) -->
       <div id="porPersonaBox" class="grid grid-cols-2 gap-3 mb-6">
-        <div class="bg-gray-50 rounded-xl p-4">
-          <p class="text-xs text-gray-500">William gastó</p>
-          <p id="totalWilliam" class="text-xl font-bold">$0</p>
+        <div class="rounded-xl p-4" style="background:#DBEAFE; border:1px solid #93C5FD">
+          <p class="text-sm font-bold" style="color:#1D4ED8">👤 William gastó</p>
+          <p id="totalWilliam" class="text-xl font-bold" style="color:#1D4ED8">$0</p>
         </div>
-        <div class="bg-gray-50 rounded-xl p-4">
-          <p class="text-xs text-gray-500">Yinna gastó</p>
-          <p id="totalYinna" class="text-xl font-bold">$0</p>
+        <div class="rounded-xl p-4" style="background:#FCE7F3; border:1px solid #F9A8D4">
+          <p class="text-sm font-bold" style="color:#DB2777">👤 Yinna gastó</p>
+          <p id="totalYinna" class="text-xl font-bold" style="color:#DB2777">$0</p>
         </div>
       </div>
 
@@ -514,10 +517,29 @@ function confirmarPerfil(nombre) {
   entrarApp();
 }
 
+// Color de identificación por persona, para que no se preste a confusiones
+// sobre de quién es la sesión activa: William = azul, Yinna = rosa.
+// Se usa como TEXTO (nombres, totales) donde el fondo es blanco/claro.
+function colorPorPersona(persona) {
+  if (persona === "William") return "#1D4ED8";
+  if (persona === "Yinna") return "#DB2777";
+  return "var(--azul-confianza)"; // Balance General u otro caso
+}
+
+// Versión clara del color por persona, pensada para FONDOS de barra (para que
+// el texto/monto que va encima siga siendo legible, a diferencia del color fuerte).
+function colorClaroPorPersona(persona) {
+  if (persona === "William") return "#BFDBFE";
+  if (persona === "Yinna") return "#FBCFE8";
+  return null;
+}
+
 function entrarApp() {
   document.getElementById("app").classList.remove("hidden");
   const esGeneral = PERFIL_ACTUAL === "General";
-  document.getElementById("perfilActual").textContent = esGeneral ? "Balance General" : PERFIL_ACTUAL;
+  const elPerfilActual = document.getElementById("perfilActual");
+  elPerfilActual.textContent = esGeneral ? "Balance General" : PERFIL_ACTUAL;
+  elPerfilActual.style.color = colorPorPersona(PERFIL_ACTUAL);
   document.getElementById("registroPerfil").textContent = PERFIL_ACTUAL;
   document.getElementById("fabRegistrar").classList.toggle("hidden", esGeneral);
   sincronizarFechaFormularioConMes();
@@ -642,7 +664,7 @@ function renderResultadosBusqueda() {
            style="background:${colorCategoria(d.Categoria)}">${EMOJI_CATEGORIA[d.Categoria] || "📦"}</div>
       <div class="flex-1 min-w-0">
         <p class="font-medium truncate">${d.Descripcion || "(sin descripción)"}</p>
-        <p class="text-xs text-gray-500">${d.Categoria} · ${d.Persona} · ${d.Lista || "Familiar"} · ${new Date(d.Fecha).toLocaleDateString("es-CO")}</p>
+        <p class="text-xs text-gray-500">${d.Categoria} · ${d.Persona} · ${d.Lista || "Familiar"} · ${parseFechaLocal(d.Fecha).toLocaleDateString("es-CO")}</p>
       </div>
       <p class="font-semibold whitespace-nowrap">$${Number(d.Monto).toLocaleString("es-CO")}</p>
     </div>`).join("");
@@ -847,7 +869,7 @@ function sincronizarFechaFormularioConMes() {
 // --- Filtro central: mes + lista + separación por persona ---
 function datosDelMes() {
   return allGastos.filter(d => {
-    const f = new Date(d.Fecha);
+    const f = parseFechaLocal(d.Fecha);
     const mismoMes = f.getMonth() === mesSeleccionado.getMonth() && f.getFullYear() === mesSeleccionado.getFullYear();
     if (!mismoMes) return false;
 
@@ -874,7 +896,7 @@ function misGastosDelMes() {
 // permanente del acumulado familiar mientras registras cualquier tipo de gasto.
 function gastosFamiliaresDelMesTodos() {
   return allGastos.filter(d => {
-    const f = new Date(d.Fecha);
+    const f = parseFechaLocal(d.Fecha);
     const mismoMes = f.getMonth() === mesSeleccionado.getMonth() && f.getFullYear() === mesSeleccionado.getFullYear();
     if (!mismoMes) return false;
     return (d.Lista || "Familiar") === "Familiar";
@@ -897,10 +919,15 @@ function renderAll() {
   const totalPropio = misGastos.reduce((sum, d) => sum + Number(d.Monto), 0);
   document.getElementById("totalMesRegistro").textContent = "$" + totalPropio.toLocaleString("es-CO");
   const elPerfilResumen = document.getElementById("registroPerfilResumen");
-  if (elPerfilResumen) elPerfilResumen.textContent = PERFIL_ACTUAL === "General" ? "" : PERFIL_ACTUAL;
+  if (elPerfilResumen) {
+    elPerfilResumen.textContent = PERFIL_ACTUAL === "General" ? "" : PERFIL_ACTUAL;
+    elPerfilResumen.style.color = colorPorPersona(PERFIL_ACTUAL);
+  }
+  const elTarjetaMisGastos = document.getElementById("tarjetaMisGastos");
+  if (elTarjetaMisGastos) elTarjetaMisGastos.style.borderLeftColor = colorPorPersona(PERFIL_ACTUAL);
 
   renderCategoriaBars("categoriaBars", 160);
-  renderCategoriaBars("categoriaBarsRegistro", 120, misGastos);
+  renderCategoriaBars("categoriaBarsRegistro", 120, misGastos, colorClaroPorPersona(PERFIL_ACTUAL), colorPorPersona(PERFIL_ACTUAL));
 
   // Tarjeta 2 de Registro: acumulado de gastos Familiares de ambos
   renderFamiliarAcumuladoRegistro();
@@ -939,7 +966,7 @@ function formatK(n) {
 
 // Barras estilo Monei: contenedor con items-end para que las barras
 // queden ancladas ABAJO y crezcan hacia arriba según el monto.
-function renderCategoriaBars(containerId, maxAltura, datosOverride) {
+function renderCategoriaBars(containerId, maxAltura, datosOverride, colorOverride, colorTextoOverride) {
   const datos = datosOverride || datosDelMes();
   const porCategoria = {};
   datos.forEach(d => { porCategoria[d.Categoria] = (porCategoria[d.Categoria] || 0) + Number(d.Monto); });
@@ -952,16 +979,51 @@ function renderCategoriaBars(containerId, maxAltura, datosOverride) {
     return;
   }
 
-  const max = Math.max(...entradas.map(e => e[1]));
+  // La escala considera tanto lo gastado como el presupuesto de cada categoría,
+  // para que ambas barras sean comparables entre sí.
+  const max = Math.max(...entradas.map(([cat, valor]) => Math.max(valor, getPresupuesto(cat) || 0)), 1);
+  const colorTexto = colorTextoOverride || "var(--azul-confianza)";
+
   cont.innerHTML = entradas.map(([cat, valor]) => {
-    const alturaPx = Math.max(56, Math.round((valor / max) * maxAltura));
+    const limite = getPresupuesto(cat);
+    const alturaGasto = Math.max(28, Math.round((valor / max) * maxAltura));
+    const colorBase = colorOverride || colorCategoria(cat);
+
+    if (!limite) {
+      // Sin presupuesto definido para esta categoría: una sola barra, como antes.
+      return `
+        <div class="flex flex-col items-center shrink-0">
+          <div class="rounded-2xl w-20 flex flex-col justify-end items-center pb-3"
+               style="height:${alturaGasto}px; background:${colorBase}">
+            <span class="text-lg">${EMOJI_CATEGORIA[cat] || "📦"}</span>
+            <span class="text-xs font-bold mt-1" style="color:${colorTexto}">${formatK(valor)}</span>
+          </div>
+          <p class="text-[11px] text-gray-500 mt-1 w-20 text-center truncate">${cat}</p>
+        </div>`;
+    }
+
+    // Con presupuesto definido: dos barras lado a lado — gasto real vs. tope —
+    // para tener una métrica visual de qué tan cerca (o pasado) del límite estás.
+    const alturaPresupuesto = Math.max(28, Math.round((limite / max) * maxAltura));
+    const superado = valor > limite;
+    const colorGasto = superado ? "#ef4444" : colorBase;
+
     return `
       <div class="flex flex-col items-center shrink-0">
-        <div class="rounded-2xl w-20 flex flex-col justify-end items-center pb-3"
-             style="height:${alturaPx}px; background:${colorCategoria(cat)}">
-          <span class="text-lg">${EMOJI_CATEGORIA[cat] || "📦"}</span>
-          <span class="text-xs font-bold mt-1" style="color:var(--azul-confianza)">${formatK(valor)}</span>
+        <div class="flex items-end gap-1">
+          <div class="rounded-xl w-9 flex flex-col justify-end items-center pb-2"
+               style="height:${alturaGasto}px; background:${colorGasto}"
+               title="Gastado: $${valor.toLocaleString("es-CO")}">
+            <span class="text-sm">${EMOJI_CATEGORIA[cat] || "📦"}</span>
+          </div>
+          <div class="rounded-xl w-9 border-2 border-dashed"
+               style="height:${alturaPresupuesto}px; border-color:var(--azul-confianza); background:transparent"
+               title="Presupuesto: $${limite.toLocaleString("es-CO")}">
+          </div>
         </div>
+        <span class="text-[10px] font-bold mt-1" style="color:${superado ? "#ef4444" : "var(--azul-confianza)"}">
+          ${formatK(valor)} / ${formatK(limite)}
+        </span>
         <p class="text-[11px] text-gray-500 mt-1 w-20 text-center truncate">${cat}</p>
       </div>`;
   }).join("");
@@ -983,17 +1045,22 @@ function renderFamiliarAcumuladoRegistro() {
   const porPersona = {};
   datos.forEach(d => { porPersona[d.Persona] = (porPersona[d.Persona] || 0) + Number(d.Monto); });
 
+  const estilos = {
+    William: { bg: "#DBEAFE", borde: "#93C5FD", texto: "#1D4ED8" },
+    Yinna:   { bg: "#FCE7F3", borde: "#F9A8D4", texto: "#DB2777" }
+  };
+
   box.innerHTML = ["William", "Yinna"].map(persona => `
-    <div class="bg-gray-50 rounded-xl p-4">
-      <p class="text-xs text-gray-500">${persona} gastó</p>
-      <p class="font-bold">$${(porPersona[persona] || 0).toLocaleString("es-CO")}</p>
+    <div class="rounded-xl p-4" style="background:${estilos[persona].bg}; border:1px solid ${estilos[persona].borde}">
+      <p class="text-sm font-bold" style="color:${estilos[persona].texto}">👤 ${persona} gastó</p>
+      <p class="font-bold text-xl" style="color:${estilos[persona].texto}">$${(porPersona[persona] || 0).toLocaleString("es-CO")}</p>
     </div>`).join("");
 }
 
 // Gastos del mes m (0-11) del año en curso, respetando la lista/persona activa
 function totalDelMesDelAnio(mesIndex, anio) {
   return allGastos.filter(d => {
-    const f = new Date(d.Fecha);
+    const f = parseFechaLocal(d.Fecha);
     if (f.getMonth() !== mesIndex || f.getFullYear() !== anio) return false;
     const lista = d.Lista || "Familiar";
     if (lista !== listaActual) return false;
@@ -1066,7 +1133,7 @@ function renderDeuda() {
   }
 
   if (liquidacion) {
-    const fechaPago = new Date(liquidacion.FechaPago).toLocaleDateString("es-CO");
+    const fechaPago = parseFechaLocal(liquidacion.FechaPago).toLocaleDateString("es-CO");
     box.innerHTML = `
       <p class="text-center font-semibold text-green-700">✓ Deuda saldada</p>
       <p class="text-center text-sm text-gray-600 mt-1">
@@ -1157,7 +1224,7 @@ function renderAlertas() {
 function renderLista() {
   const cont = document.getElementById("listaGastos");
   cont.innerHTML = "";
-  const ordenado = [...datosDelMes()].sort((a,b) => new Date(b.Fecha) - new Date(a.Fecha));
+  const ordenado = [...datosDelMes()].sort((a,b) => parseFechaLocal(b.Fecha) - parseFechaLocal(a.Fecha));
   if (ordenado.length === 0) {
     cont.innerHTML = `<p class="text-gray-400 text-sm py-4">Sin transacciones este mes.</p>`;
     return;
@@ -1313,15 +1380,24 @@ function gastosFamiliaresDelOtro() {
 }
 
 // El ID de nuestros gastos es un timestamp (ms). Lo usamos para saber qué es "nuevo".
+// Convierte "yyyy-MM-dd" a un Date anclado a medianoche LOCAL, en vez de UTC.
+// new Date("2026-07-03") interpreta la fecha como UTC, y al mostrarla en zonas
+// horarias negativas (ej. Colombia, UTC-5) puede aparecer un día antes.
+function parseFechaLocal(fechaStr) {
+  if (!fechaStr) return new Date(NaN);
+  const [y, m, d] = String(fechaStr).slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function tsDeGasto(d) {
   const n = Number(d.ID);
-  return isNaN(n) ? new Date(d.Fecha).getTime() : n;
+  return isNaN(n) ? parseFechaLocal(d.Fecha).getTime() : n;
 }
 
 // Día y hora legibles de un gasto (la hora sale del ID = timestamp de registro)
 function fechaHoraGasto(d) {
   const ts = tsDeGasto(d);
-  const dia = new Date(d.Fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+  const dia = parseFechaLocal(d.Fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
   const hora = new Date(ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
   return `${dia} · ${hora}`;
 }
@@ -1410,7 +1486,7 @@ function renderCampana() {
     <div class="py-3">
       <p class="text-sm"><span class="font-semibold">${d.Persona}</span> registró un gasto familiar</p>
       <p class="text-sm text-gray-600">${d.Categoria} · ${d.Descripcion || "(sin descripción)"} · <span class="font-semibold">$${Number(d.Monto).toLocaleString("es-CO")}</span></p>
-      <p class="text-xs text-gray-400">${new Date(d.Fecha).toLocaleDateString("es-CO")}</p>
+      <p class="text-xs text-gray-400">${parseFechaLocal(d.Fecha).toLocaleDateString("es-CO")}</p>
     </div>`).join("");
 }
 
@@ -1591,7 +1667,7 @@ function agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto) {
     pdf.setFont(undefined, "bold");
 
     if (liquidacion) {
-      const fechaPago = new Date(liquidacion.FechaPago).toLocaleDateString("es-CO");
+      const fechaPago = parseFechaLocal(liquidacion.FechaPago).toLocaleDateString("es-CO");
       pdf.text(
         `Deuda saldada — ${liquidacion.Persona} pagó $${Number(liquidacion.Monto).toLocaleString("es-CO")} el ${fechaPago}`,
         margin, y
