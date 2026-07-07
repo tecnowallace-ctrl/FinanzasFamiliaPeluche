@@ -220,6 +220,11 @@ function doPost(e) {
     // body.mesAno: "YYYY-MM", body.concepto: ej. "Agua", body.persona: quien pagó,
     // body.fecha: "YYYY-MM-DD" (fecha de confirmación)
     const sheet = ss.getSheetByName(SHEET_PAGOS);
+    if (!sheet) {
+      return jsonResponse_({
+        error: "Falta la hoja 'Pagos' en tu Google Sheet. Créala con los encabezados: MesAno | Concepto | Persona | FechaConfirmacion"
+      }, 400);
+    }
     const data = sheet.getDataRange().getValues();
     let rowIndex = -1;
     for (let i = 1; i < data.length; i++) {
@@ -240,6 +245,11 @@ function doPost(e) {
   if (body.action === "deshacerConfirmacionPago") {
     // body.mesAno, body.concepto
     const sheet = ss.getSheetByName(SHEET_PAGOS);
+    if (!sheet) {
+      return jsonResponse_({
+        error: "Falta la hoja 'Pagos' en tu Google Sheet. Créala con los encabezados: MesAno | Concepto | Persona | FechaConfirmacion"
+      }, 400);
+    }
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === body.mesAno && data[i][1] === body.concepto) {
