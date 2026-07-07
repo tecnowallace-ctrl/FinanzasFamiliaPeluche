@@ -149,6 +149,7 @@
   <!-- Tabs -->
   <div class="flex gap-2 mb-4 overflow-x-auto">
     <button class="tab-btn border rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap" data-tab="registro" onclick="showTab('registro')">➕ Registrar</button>
+    <button class="tab-btn border rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap" data-tab="pagos" onclick="showTab('pagos')">💳 Pagos</button>
     <button class="tab-btn border rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap" data-tab="balance" onclick="showTab('balance')">📊 Balance</button>
     <button class="tab-btn border rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap" data-tab="presupuestos" onclick="showTab('presupuestos')">🎯 Presupuestos</button>
   </div>
@@ -199,6 +200,16 @@
         <span id="regContador" class="text-xs font-bold text-white rounded-full px-3 py-1" style="background:var(--azul-confianza)">0</span>
       </div>
       <div id="listaGastosMesRegistro" class="divide-y"></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: PAGOS (checklist de gastos fijos mensuales) ===== -->
+  <div id="tab-pagos" class="tab-content hidden">
+    <div class="bg-white rounded-2xl shadow p-6 mb-6">
+      <p class="text-gray-500 text-sm mb-1">Gastos fijos — <span id="pagosMesLabel"></span></p>
+      <h2 class="text-2xl font-extrabold mb-1">Confirmar quién pagó</h2>
+      <p class="text-xs text-gray-400 mb-4">Se reinicia solo al empezar cada mes: los pagos confirmados aplican únicamente al mes que estás viendo.</p>
+      <div id="listaPagosFijos" class="divide-y"></div>
     </div>
   </div>
 
@@ -419,6 +430,25 @@ let PERFIL_ACTUAL = "";
 let allGastos = [];
 let allPresupuestos = [];
 let allLiquidaciones = [];
+let allPagos = [];
+
+// Gastos fijos mensuales que se confirman con un "OK" en el tab Pagos.
+// La lista es fija (no se edita desde la app); se reinicia solo cada mes
+// porque cada confirmación queda ligada a un MesAno específico.
+const CONCEPTOS_PAGOS_FIJOS = [
+  "Agua",
+  "Luz",
+  "Gas",
+  "Internet",
+  "Adm. Arrayanes",
+  "Arriendo Tulipanes",
+  "Col Salomé",
+  "Col Mathias",
+  "Credito Anglo",
+  "Credito Carro",
+  "Tarjeta de credito de Yinna",
+  "Tarjeta de credito de William"
+];
 let mesSeleccionado = new Date();
 let listaActual = "Familiar";
 
@@ -556,6 +586,7 @@ function entrarApp() {
   // Balance General: sin registro ni presupuestos; arranca en Balance.
   // Perfiles personales: arrancan en Registrar (pantalla inicial pedida).
   document.querySelector('[data-tab="registro"]').classList.toggle("hidden", esGeneral);
+  document.querySelector('[data-tab="pagos"]').classList.toggle("hidden", esGeneral);
   document.querySelector('[data-tab="presupuestos"]').classList.toggle("hidden", esGeneral);
 
   configurarNotificaciones();
@@ -685,6 +716,7 @@ async function fetchData() {
     allGastos = json.gastos || [];
     allPresupuestos = json.presupuestos || [];
     allLiquidaciones = json.liquidaciones || [];
+    allPagos = json.pagos || [];
     return true;
   } catch (err) {
     console.error(err);
@@ -928,6 +960,7 @@ function renderAll() {
 
   renderCategoriaBars("categoriaBars", 160);
   renderCategoriaBars("categoriaBarsRegistro", 120, misGastos, colorClaroPorPersona(PERFIL_ACTUAL), colorPorPersona(PERFIL_ACTUAL));
+  renderPagos();
 
   // Tarjeta 2 de Registro: acumulado de gastos Familiares de ambos
   renderFamiliarAcumuladoRegistro();
@@ -1117,6 +1150,92 @@ function mesAnoActual() {
 
 function getLiquidacionMesActual() {
   return allLiquidaciones.find(l => l.MesAno === mesAnoActual());
+}
+
+// --- Tab Pagos: checklist de gastos fijos mensuales ---
+function slugConcepto(concepto) {
+  return "pagoFecha_" + concepto.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function renderPagos() {
+  const cont = document.getElementById("listaPagosFijos");
+  const label = document.getElementById("pagosMesLabel");
+  if (!cont || !label) return;
+
+  label.textContent = mesSeleccionado.toLocaleString("es-CO", { month: "long", year: "numeric" });
+
+  const mesAno = mesAnoActual();
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  cont.innerHTML = CONCEPTOS_PAGOS_FIJOS.map(concepto => {
+    const pago = allPagos.find(p => p.MesAno === mesAno && p.Concepto === concepto);
+    const conceptoEscapado = concepto.replace(/'/g, "\\'");
+
+    if (pago) {
+      const color = colorPorPersona(pago.Persona);
+      const fechaTexto = pago.FechaConfirmacion
+        ? parseFechaLocal(pago.FechaConfirmacion).toLocaleDateString("es-CO")
+        : "";
+      return `
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <p class="font-medium">${concepto}</p>
+            <p class="text-xs" style="color:${color}">✓ Pagado por <strong>${pago.Persona}</strong>${fechaTexto ? " · " + fechaTexto : ""}</p>
+          </div>
+          <button onclick="deshacerPagoFijo('${conceptoEscapado}')" class="text-xs text-gray-400 underline">Deshacer</button>
+        </div>`;
+    }
+
+    return `
+      <div class="flex items-center justify-between py-3 flex-wrap gap-2">
+        <p class="font-medium">${concepto}</p>
+        <div class="flex items-center gap-2">
+          <input type="date" id="${slugConcepto(concepto)}" value="${hoy}"
+            title="Fecha en la que se pagó"
+            class="border rounded-lg px-2 py-1.5 text-xs" />
+          <button onclick="confirmarPagoFijo('${conceptoEscapado}', 'William')"
+            class="text-xs font-bold rounded-lg px-3 py-2 whitespace-nowrap" style="background:${colorClaroPorPersona("William")}; color:${colorPorPersona("William")}">
+            ✓ William
+          </button>
+          <button onclick="confirmarPagoFijo('${conceptoEscapado}', 'Yinna')"
+            class="text-xs font-bold rounded-lg px-3 py-2 whitespace-nowrap" style="background:${colorClaroPorPersona("Yinna")}; color:${colorPorPersona("Yinna")}">
+            ✓ Yinna
+          </button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function confirmarPagoFijo(concepto, persona) {
+  const inputFecha = document.getElementById(slugConcepto(concepto));
+  const fecha = (inputFecha && inputFecha.value) || new Date().toISOString().slice(0, 10);
+
+  const payload = {
+    action: "confirmarPago",
+    password: SESSION_PASSWORD,
+    mesAno: mesAnoActual(),
+    concepto: concepto,
+    persona: persona,
+    fecha: fecha
+  };
+  await fetch(CONFIG.API_URL, { method: "POST", body: JSON.stringify(payload) });
+  await fetchData();
+  renderAll();
+}
+
+async function deshacerPagoFijo(concepto) {
+  if (!confirm(`¿Deshacer la confirmación de pago de "${concepto}" este mes?`)) return;
+  await fetch(CONFIG.API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "deshacerConfirmacionPago",
+      password: SESSION_PASSWORD,
+      mesAno: mesAnoActual(),
+      concepto: concepto
+    })
+  });
+  await fetchData();
+  renderAll();
 }
 
 function renderDeuda() {
