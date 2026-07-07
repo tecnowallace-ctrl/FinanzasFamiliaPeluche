@@ -1699,7 +1699,7 @@ function agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto) {
     pdf.setFontSize(8);
     pdf.setTextColor(120);
     pdf.text("FECHA Y HORA", margin, y);
-    pdf.text("CATEGORÍA / DESCRIPCIÓN", margin + 40, y);
+    pdf.text("CATEGORÍA / DESCRIPCIÓN", margin + 52, y);
     pdf.text("MONTO", pageWidth - margin, y, { align: "right" });
     pdf.setTextColor(0);
     y += 5;
@@ -1720,7 +1720,7 @@ function agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto) {
 
         pdf.setFont(undefined, "normal");
         pdf.text(fechaHora, margin, y);
-        pdf.text(desc, margin + 40, y, { maxWidth: pageWidth - margin * 2 - 40 - 25 });
+        pdf.text(desc, margin + 52, y, { maxWidth: pageWidth - margin * 2 - 52 - 25 });
         pdf.text(monto, pageWidth - margin, y, { align: "right" });
         y += 6;
       });
