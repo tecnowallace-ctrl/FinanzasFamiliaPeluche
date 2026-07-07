@@ -1537,25 +1537,121 @@ function configurarNotificaciones() {
 }
 
 // --- Exportar informe PDF ---
+// Se reconstruye 100% con dibujo vectorial (rect/text de jsPDF), NO con
+// html2canvas: la captura de pantalla anterior recortaba las categorías que
+// quedaban fuera del scroll horizontal de las barras. Así se ven TODAS.
 function exportPDF() {
-  showTab("balance");
-  const el = document.getElementById("dashboardCapture");
-  html2canvas(el, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jspdf.jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const mesTexto = mesSeleccionado.toLocaleString("es-CO", { month: "long", year: "numeric" });
+  const pdf = new jspdf.jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 12;
+  const mesTexto = mesSeleccionado.toLocaleString("es-CO", { month: "long", year: "numeric" });
 
-    // --- Página 1: resumen visual del dashboard (igual que antes) ---
-    pdf.text(`Informe — ${labelListaActual()} — ${mesTexto}`, 10, 10);
-    const imgHeight = (canvas.height * pageWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 0, 15, pageWidth, imgHeight);
+  agregarGraficoCategoriasPDF(pdf, pageWidth, pageHeight, margin, mesTexto);
+  agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto);
+  agregarRecomendacionesPDF(pdf, pageWidth, pageHeight, margin);
 
-    // --- Páginas siguientes: detalle de gastos por persona + balance ---
-    agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto);
+  pdf.save(`informe-${mesSeleccionado.getFullYear()}-${mesSeleccionado.getMonth() + 1}.pdf`);
+}
 
-    pdf.save(`informe-${mesSeleccionado.getFullYear()}-${mesSeleccionado.getMonth()+1}.pdf`);
+// Página(s) 1: gráfico por categoría — presupuesto vs. lo pagado por Yinna y
+// por William (o vs. lo gastado total, en listas individuales). Se dibuja con
+// rect() de jsPDF directamente, así que nunca se recortan categorías.
+function agregarGraficoCategoriasPDF(pdf, pageWidth, pageHeight, margin, mesTexto) {
+  let y = margin;
+
+  pdf.setFontSize(16);
+  pdf.setFont(undefined, "bold");
+  pdf.text(`Informe de gastos — ${labelListaActual()} — ${mesTexto}`, margin, y);
+  y += 8;
+
+  const datos = datosDelMes();
+  const esCompartida = listaActual === "Familiar" || listaActual === "TQ";
+
+  pdf.setFontSize(9);
+  pdf.setFont(undefined, "normal");
+  pdf.setTextColor(100);
+  pdf.text(
+    esCompartida
+      ? "Cada categoría muestra: presupuesto, lo pagado por Yinna y lo pagado por William."
+      : "Cada categoría muestra: presupuesto vs. lo gastado.",
+    margin, y
+  );
+  pdf.setTextColor(0);
+  y += 9;
+
+  const porCategoria = {};
+  datos.forEach(d => {
+    if (!porCategoria[d.Categoria]) porCategoria[d.Categoria] = { William: 0, Yinna: 0, total: 0 };
+    porCategoria[d.Categoria][d.Persona] = (porCategoria[d.Categoria][d.Persona] || 0) + Number(d.Monto);
+    porCategoria[d.Categoria].total += Number(d.Monto);
+  });
+
+  const categorias = Object.keys(porCategoria).sort((a, b) => porCategoria[b].total - porCategoria[a].total);
+
+  if (categorias.length === 0) {
+    pdf.setFont(undefined, "italic");
+    pdf.text("Sin gastos registrados este mes.", margin, y);
+    pdf.setFont(undefined, "normal");
+    return;
+  }
+
+  const labelWidth = 30;
+  const valueWidth = 22;
+  const barMaxWidth = pageWidth - margin * 2 - labelWidth - valueWidth;
+  const barHeight = 4.2;
+  const barGap = 1.6;
+  const numBarras = esCompartida ? 3 : 2;
+  const filaAltura = (barHeight + barGap) * numBarras + 9;
+
+  const checkPageBreak = (alturaNecesaria) => {
+    if (y + alturaNecesaria > pageHeight - margin) {
+      pdf.addPage();
+      y = margin;
+    }
+  };
+
+  const drawBarRow = (label, valor, max, colorRGB) => {
+    const anchoBarra = Math.max(1, (valor / max) * barMaxWidth);
+
+    pdf.setFontSize(7);
+    pdf.setFont(undefined, "normal");
+    pdf.setTextColor(90);
+    pdf.text(label, margin, y + barHeight - 0.8);
+    pdf.setTextColor(0);
+
+    // Pista de fondo (barra completa gris clara) + barra real encima
+    pdf.setFillColor(230, 230, 230);
+    pdf.rect(margin + labelWidth, y, barMaxWidth, barHeight, "F");
+    pdf.setFillColor(colorRGB[0], colorRGB[1], colorRGB[2]);
+    pdf.rect(margin + labelWidth, y, anchoBarra, barHeight, "F");
+
+    pdf.setFontSize(7);
+    pdf.text("$" + formatK(valor), margin + labelWidth + barMaxWidth + 2, y + barHeight - 0.8);
+    y += barHeight + barGap;
+  };
+
+  categorias.forEach(cat => {
+    checkPageBreak(filaAltura);
+
+    const info = porCategoria[cat];
+    const limite = getPresupuesto(cat) || 0;
+    const max = Math.max(limite, info.William, info.Yinna, info.total, 1);
+
+    pdf.setFontSize(9);
+    pdf.setFont(undefined, "bold");
+    pdf.text(cat, margin, y);
+    y += 4;
+
+    drawBarRow("Presupuesto", limite, max, [13, 71, 161]);
+    if (esCompartida) {
+      drawBarRow("Yinna", info.Yinna, max, [219, 39, 119]);
+      drawBarRow("William", info.William, max, [29, 78, 216]);
+    } else {
+      drawBarRow("Gastado", info.total, max, [25, 135, 84]);
+    }
+
+    y += 5;
   });
 }
 
@@ -1642,7 +1738,7 @@ function agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto) {
   checkPageBreak(30);
   pdf.setFontSize(12);
   pdf.setFont(undefined, "bold");
-  pdf.text("Balance del mes", margin, y);
+  pdf.text("Balance del mes (consolidado)", margin, y);
   y += 7;
 
   pdf.setFontSize(10);
@@ -1683,6 +1779,58 @@ function agregarDetallePorPersonaPDF(pdf, pageWidth, pageHeight, mesTexto) {
     pdf.setFont(undefined, "normal");
     y += 8;
   }
+}
+
+// Última sección: recomendaciones generales para mantener sanas las finanzas
+// familiares, con una nota puntual si alguna categoría superó su presupuesto.
+function agregarRecomendacionesPDF(pdf, pageWidth, pageHeight, margin) {
+  pdf.addPage();
+  let y = margin;
+
+  pdf.setFontSize(14);
+  pdf.setFont(undefined, "bold");
+  pdf.text("Recomendaciones para unas finanzas familiares sanas", margin, y);
+  y += 9;
+
+  pdf.setFontSize(10);
+  pdf.setFont(undefined, "normal");
+
+  const datos = datosDelMes();
+  const porCategoria = {};
+  datos.forEach(d => { porCategoria[d.Categoria] = (porCategoria[d.Categoria] || 0) + Number(d.Monto); });
+  const categoriasSuperadas = Object.keys(porCategoria).filter(cat => {
+    const limite = getPresupuesto(cat);
+    return limite && porCategoria[cat] > limite;
+  });
+
+  const recomendaciones = [];
+
+  if (categoriasSuperadas.length > 0) {
+    recomendaciones.push(
+      `Este mes se superó el presupuesto en: ${categoriasSuperadas.join(", ")}. Vale la pena revisar juntos si fue un gasto puntual o si conviene ajustar el tope mensual de esa categoría.`
+    );
+  } else {
+    recomendaciones.push("Ninguna categoría superó su presupuesto este mes — buen control del gasto.");
+  }
+
+  recomendaciones.push(
+    "Regla 50/30/20: destinar aproximadamente 50% del ingreso a necesidades (arriendo, mercado, servicios), 30% a gustos y ocio, y 20% a ahorro o pago de deudas.",
+    "Fondo de emergencia: si aún no existe, apuntar a guardar entre 3 y 6 meses de gastos fijos en una cuenta separada, de fácil acceso pero sin mezclarla con el día a día.",
+    "Revisión mensual en pareja: apartar 15-20 minutos cada mes (justo después de generar este informe) para revisar juntos qué categorías subieron o bajaron, y por qué.",
+    "Gastos hormiga: las categorías pequeñas y frecuentes (mercado, restaurantes, recreación) suelen sumar más de lo que parece a fin de mes — conviene vigilarlas de cerca.",
+    "Automatizar lo posible: el ahorro programado y el pago de tarjetas o arriendo por débito automático reduce el riesgo de olvidos y moras.",
+    "Metas compartidas: si hay un objetivo en común (viaje, cuota inicial, colegio de los niños), ponerle nombre y fecha ayuda a mantener la disciplina de ahorro."
+  );
+
+  recomendaciones.forEach(texto => {
+    const lineas = pdf.splitTextToSize(`•  ${texto}`, pageWidth - margin * 2);
+    if (y + lineas.length * 5 > pageHeight - margin) {
+      pdf.addPage();
+      y = margin;
+    }
+    pdf.text(lineas, margin, y);
+    y += lineas.length * 5 + 4;
+  });
 }
 </script>
 </body>
