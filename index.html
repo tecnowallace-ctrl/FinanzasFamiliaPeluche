@@ -209,6 +209,7 @@
       <p class="text-gray-500 text-sm mb-1">Gastos fijos — <span id="pagosMesLabel"></span></p>
       <h2 class="text-2xl font-extrabold mb-1">Confirmar quién pagó</h2>
       <p class="text-xs text-gray-400 mb-4">Se reinicia solo al empezar cada mes: los pagos confirmados aplican únicamente al mes que estás viendo.</p>
+      <p id="pagosErrorMsg" class="hidden text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4"></p>
       <div id="listaPagosFijos" class="divide-y"></div>
     </div>
   </div>
@@ -447,7 +448,8 @@ const CONCEPTOS_PAGOS_FIJOS = [
   "Credito Anglo",
   "Credito Carro",
   "Tarjeta de credito de Yinna",
-  "Tarjeta de credito de William"
+  "Tarjeta de credito de William",
+  "Pago de Cel. William"
 ];
 let mesSeleccionado = new Date();
 let listaActual = "Familiar";
@@ -1209,6 +1211,8 @@ function renderPagos() {
 async function confirmarPagoFijo(concepto, persona) {
   const inputFecha = document.getElementById(slugConcepto(concepto));
   const fecha = (inputFecha && inputFecha.value) || new Date().toISOString().slice(0, 10);
+  const errBox = document.getElementById("pagosErrorMsg");
+  if (errBox) errBox.classList.add("hidden");
 
   const payload = {
     action: "confirmarPago",
@@ -1218,22 +1222,48 @@ async function confirmarPagoFijo(concepto, persona) {
     persona: persona,
     fecha: fecha
   };
-  await fetch(CONFIG.API_URL, { method: "POST", body: JSON.stringify(payload) });
+
+  try {
+    const res = await fetch(CONFIG.API_URL, { method: "POST", body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.error) {
+      if (errBox) { errBox.textContent = json.error; errBox.classList.remove("hidden"); }
+      return;
+    }
+  } catch (err) {
+    if (errBox) { errBox.textContent = "No se pudo conectar con el servidor. Intenta de nuevo."; errBox.classList.remove("hidden"); }
+    return;
+  }
+
   await fetchData();
   renderAll();
 }
 
 async function deshacerPagoFijo(concepto) {
   if (!confirm(`¿Deshacer la confirmación de pago de "${concepto}" este mes?`)) return;
-  await fetch(CONFIG.API_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "deshacerConfirmacionPago",
-      password: SESSION_PASSWORD,
-      mesAno: mesAnoActual(),
-      concepto: concepto
-    })
-  });
+  const errBox = document.getElementById("pagosErrorMsg");
+  if (errBox) errBox.classList.add("hidden");
+
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "deshacerConfirmacionPago",
+        password: SESSION_PASSWORD,
+        mesAno: mesAnoActual(),
+        concepto: concepto
+      })
+    });
+    const json = await res.json();
+    if (json.error) {
+      if (errBox) { errBox.textContent = json.error; errBox.classList.remove("hidden"); }
+      return;
+    }
+  } catch (err) {
+    if (errBox) { errBox.textContent = "No se pudo conectar con el servidor. Intenta de nuevo."; errBox.classList.remove("hidden"); }
+    return;
+  }
+
   await fetchData();
   renderAll();
 }
