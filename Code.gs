@@ -190,7 +190,7 @@ function doPost(e) {
     const data = sheet.getDataRange().getValues();
     let rowIndex = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === body.mesAno) {
+      if (normalizarMesAno_(data[i][0]) === body.mesAno) {
         rowIndex = i + 1;
         break;
       }
@@ -208,7 +208,7 @@ function doPost(e) {
     const sheet = ss.getSheetByName(SHEET_LIQUIDACIONES);
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === body.mesAno) {
+      if (normalizarMesAno_(data[i][0]) === body.mesAno) {
         sheet.deleteRow(i + 1);
         break;
       }
@@ -228,7 +228,7 @@ function doPost(e) {
     const data = sheet.getDataRange().getValues();
     let rowIndex = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === body.mesAno && data[i][1] === body.concepto) {
+      if (normalizarMesAno_(data[i][0]) === body.mesAno && data[i][1] === body.concepto) {
         rowIndex = i + 1;
         break;
       }
@@ -252,7 +252,7 @@ function doPost(e) {
     }
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === body.mesAno && data[i][1] === body.concepto) {
+      if (normalizarMesAno_(data[i][0]) === body.mesAno && data[i][1] === body.concepto) {
         sheet.deleteRow(i + 1);
         break;
       }
@@ -264,6 +264,15 @@ function doPost(e) {
 }
 
 // --- Helpers ---
+
+// Convierte una celda de MesAno (que puede llegar como Date si Sheets la
+// autoconvirtió, o como string "yyyy-MM" si quedó como texto) a "yyyy-MM" plano.
+function normalizarMesAno_(val) {
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM");
+  }
+  return val;
+}
 
 function sheetToObjects_(sheet) {
   if (!sheet) return [];
@@ -281,8 +290,13 @@ function sheetToObjects_(sheet) {
         // ISO con hora (ej: "2026-07-03T05:00:00.000Z"), lo que rompe los
         // <input type="date"> del frontend y puede correr el día mostrado
         // según la zona horaria del navegador. Se deja como "yyyy-MM-dd" plano.
+        // La columna "MesAno" es especial: a veces Sheets la autoconvierte a
+        // fecha (ej. al escribir "2026-07"), así que se formatea sin el día
+        // ("yyyy-MM") para que siga coincidiendo con lo que espera el frontend.
         if (val instanceof Date) {
-          val = Utilities.formatDate(val, tz, "yyyy-MM-dd");
+          val = (h === "MesAno")
+            ? Utilities.formatDate(val, tz, "yyyy-MM")
+            : Utilities.formatDate(val, tz, "yyyy-MM-dd");
         }
         obj[h] = val;
       });
